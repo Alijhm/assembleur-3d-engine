@@ -1,0 +1,510 @@
+extern XOpenDisplay
+extern XDisplayName
+extern XCloseDisplay
+extern XCreateSimpleWindow
+extern XMapWindow
+extern XRootWindow
+extern XSelectInput
+extern XFlush
+extern XCreateGC
+extern XSetForeground
+extern XDrawLine
+extern XDrawPoint
+extern XNextEvent
+
+extern printf
+extern exit
+
+%define StructureNotifyMask 131072
+%define KeyPressMask 1
+%define ButtonPressMask 4
+%define MapNotify 19
+%define KeyPress 2
+%define ButtonPress 4
+%define Expose 12
+%define ConfigureNotify 22
+%define CreateNotify 16
+%define QWORD 8
+%define DWORD 4
+%define WORD 2
+%define BYTE 1
+%define LARGEUR 400
+%define HAUTEUR 400
+%define POINTS 12
+%define FACES 20
+
+global main
+
+section .bss
+display_name: resq 1
+screen: resd 1
+depth: resd 1
+connection: resd 1
+width: resd 1
+height: resd 1
+window: resq 1
+gc: resq 1
+cosinus: resd 360
+sinus: resd 360
+X_prjt: resd POINTS
+Y_prjt: resd POINTS
+objet_rotated: resd POINTS * 3
+cos_x: resd 1
+sin_x: resd 1
+cos_y: resd 1
+sin_y: resd 1
+cos_z: resd 1
+sin_z: resd 1
+
+section .data
+event: times 24 dq 0
+x1: dd 0
+x2: dd 0
+y1: dd 0
+y2: dd 0
+angle: dd 0
+demiangle: dd 180
+df: dd 400.0
+Zoff: dd 300.0
+Xoff: dd 200.0
+Yoff: dd 200.0
+
+angle_x: dd 0.0
+angle_y: dd 0.0
+angle_z: dd 0.0
+temp_x: dd 0.0
+temp_y: dd 0.0
+temp_z: dd 0.0
+
+objet:
+dd 0.0,52.573195,-85.0652164072
+dd 0.0,-52.573195,-85.0652164072
+dd 85.0652164072,0.0,-52.573195
+dd 85.0652164072,0.0,52.573195
+dd 0.0,52.573195,85.0652164072
+dd 0.0,-52.573195,85.0652164072
+dd -85.0652164072,0.0,52.573195
+dd -85.0652164072,0.0,-52.573195
+dd 52.573195,85.0652164072,0.0
+dd -52.573195,85.0652164072,0.0
+dd -52.573195,-85.0652164072,0.0
+dd 52.573195,-85.0652164072,0.0
+
+faces:
+dd 9,8,0
+dd 8,2,0
+dd 8,3,2
+dd 8,4,3
+dd 8,9,4
+dd 4,9,6
+dd 6,9,7
+dd 9,0,7
+dd 11,10,1
+dd 2,11,1
+dd 2,3,11
+dd 3,5,11
+dd 5,10,11
+dd 5,6,10
+dd 6,7,10
+dd 7,1,10
+dd 1,7,0
+dd 2,1,0
+dd 4,5,3
+dd 4,6,5
+
+compteur: dd 0
+
+section .text
+
+precalculer_angles_rotation:
+    push rbp
+    
+    fld dword[angle_x]
+    fldpi
+    fmulp
+    fidiv dword[demiangle]
+    fsincos
+    fstp dword[cos_x]
+    fstp dword[sin_x]
+    
+    fld dword[angle_y]
+    fldpi
+    fmulp
+    fidiv dword[demiangle]
+    fsincos
+    fstp dword[cos_y]
+    fstp dword[sin_y]
+    
+    fld dword[angle_z]
+    fldpi
+    fmulp
+    fidiv dword[demiangle]
+    fsincos
+    fstp dword[cos_z]
+    fstp dword[sin_z]
+    
+    pop rbp
+    ret
+
+appliquer_rotations:
+    push rbp
+    mov rbp, rsp
+    
+    mov rsi, objet
+    mov rdi, objet_rotated
+    mov ecx, POINTS * 3
+    cld
+    rep movsd
+    
+    mov rax, objet_rotated
+    mov dword[compteur], 0
+    
+.boucle_points:
+    cmp dword[compteur], POINTS
+    je .fin_rotations
+    
+    movss xmm0, [rax]
+    movss xmm1, [rax+4]
+    movss xmm2, [rax+8]
+    
+    movss [temp_y], xmm1
+    movss [temp_z], xmm2
+    
+    movss xmm3, [temp_y]
+    mulss xmm3, [cos_x]
+    movss xmm4, [temp_z]
+    mulss xmm4, [sin_x]
+    subss xmm3, xmm4
+    movss xmm1, xmm3
+    
+    movss xmm3, [temp_y]
+    mulss xmm3, [sin_x]
+    movss xmm4, [temp_z]
+    mulss xmm4, [cos_x]
+    addss xmm3, xmm4
+    movss xmm2, xmm3
+    
+    movss [temp_x], xmm0
+    movss [temp_z], xmm2
+    
+    movss xmm3, [temp_z]
+    mulss xmm3, [sin_y]
+    movss xmm4, [temp_x]
+    mulss xmm4, [cos_y]
+    addss xmm3, xmm4
+    movss xmm0, xmm3
+    
+    movss xmm3, [temp_z]
+    mulss xmm3, [cos_y]
+    movss xmm4, [temp_x]
+    mulss xmm4, [sin_y]
+    subss xmm3, xmm4
+    movss xmm2, xmm3
+    
+    movss [temp_x], xmm0
+    movss [temp_y], xmm1
+    
+    movss xmm3, [temp_x]
+    mulss xmm3, [cos_z]
+    movss xmm4, [temp_y]
+    mulss xmm4, [sin_z]
+    subss xmm3, xmm4
+    movss xmm0, xmm3
+    
+    movss xmm3, [temp_x]
+    mulss xmm3, [sin_z]
+    movss xmm4, [temp_y]
+    mulss xmm4, [cos_z]
+    addss xmm3, xmm4
+    movss xmm1, xmm3
+    
+    movss [rax], xmm0
+    movss [rax+4], xmm1
+    movss [rax+8], xmm2
+    
+    add rax, 12
+    inc dword[compteur]
+    jmp .boucle_points
+    
+.fin_rotations:
+    pop rbp
+    ret
+
+projeter:
+    push rbp
+    mov rbp, rsp
+    mov rax, objet_rotated
+    mov rbx, X_prjt
+    mov rcx, Y_prjt
+    mov dword[compteur], 0
+
+.boucle:
+    cmp dword[compteur], POINTS
+    je fin_projeter
+
+    movss xmm0, [rax + 0]
+    movss xmm1, [rax + 4]
+    movss xmm2, [rax + 8]
+
+    addss xmm2, [Zoff]
+
+    mulss xmm0, [df]
+    mulss xmm1, [df]
+
+    divss xmm0, xmm2
+    divss xmm1, xmm2
+
+    addss xmm0, [Xoff]
+    addss xmm1, [Yoff]
+
+    cvttss2si edx, xmm0
+    mov [rbx], edx
+
+    cvttss2si edx, xmm1
+    mov [rcx], edx
+
+    add rax, 12
+    add rbx, 4
+    add rcx, 4
+    inc dword[compteur]
+
+    jmp .boucle
+
+fin_projeter:
+    mov dword[compteur], 0
+    pop rbp
+    ret
+
+calcul_normal_face:
+    push rbp
+
+    mov eax, [r14]
+    mov ebx, [r14+4]
+    mov ecx, [r14+8]
+
+    mov esi, ebx
+    imul esi, 4
+    mov edi, [r12 + rsi]
+
+    mov r8d, [r13 + rsi]
+
+    mov esi, eax
+    imul esi, 4
+    mov edx, [r12 + rsi]
+    sub edx, edi
+
+    mov esi, eax
+    imul esi, 4
+    mov r9d, [r13 + rsi]
+    sub r9d, r8d
+
+    mov esi, ecx
+    imul esi, 4
+    mov r10d, [r12 + rsi]
+    sub r10d, edi
+
+    mov r11d, [r13 + rsi]
+    sub r11d, r8d
+
+    mov eax, edx
+    imul eax, r11d
+
+    mov ebx, r9d
+    imul ebx, r10d
+
+    sub eax, ebx
+
+    cmp eax, 0
+    jge .face_cachee
+
+    mov rdx, 1
+    jmp .fin_calcul
+
+.face_cachee:
+    mov rdx, 0
+
+.fin_calcul:
+    pop rbp
+    ret
+
+dessiner:
+    push rbp
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[gc]
+    mov edx, 0xFFFFFF
+    call XSetForeground
+
+    mov r14, faces
+    mov r12, X_prjt
+    mov r13, Y_prjt
+    mov dword[compteur], 0
+
+boucle_2:
+    cmp dword[compteur], FACES
+    je fin_dessiner
+
+    call calcul_normal_face
+    cmp rdx, 0
+    je skip_face
+
+    mov eax, [r14]
+    mov ebx, [r14+4]
+    mov r15d, [r14+8]
+
+    push rax
+
+    mov esi, eax
+    imul esi, 4
+    mov ecx, [r12 + rsi]
+    mov r8d, [r13 + rsi]
+
+    mov esi, ebx
+    imul esi, 4
+    mov r9d, [r12 + rsi]
+    mov r10d, [r13 + rsi]
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[window]
+    mov rdx, qword[gc]
+    push r10
+    call XDrawLine
+    add rsp, 8
+
+    mov esi, ebx
+    imul esi, 4
+    mov ecx, [r12 + rsi]
+    mov r8d, [r13 + rsi]
+
+    mov esi, r15d
+    imul esi, 4
+    mov r9d, [r12 + rsi]
+    mov r10d, [r13 + rsi]
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[window]
+    mov rdx, qword[gc]
+    push r10
+    call XDrawLine
+    add rsp, 8
+
+    pop rax
+    mov esi, r15d
+    imul esi, 4
+    mov ecx, [r12 + rsi]
+    mov r8d, [r13 + rsi]
+
+    mov esi, eax
+    imul esi, 4
+    mov r9d, [r12 + rsi]
+    mov r10d, [r13 + rsi]
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[window]
+    mov rdx, qword[gc]
+    push r10
+    call XDrawLine
+    add rsp, 8
+
+skip_face:
+    add r14, 12
+    inc dword[compteur]
+    jmp boucle_2
+
+fin_dessiner:
+    mov dword[compteur], 0
+    pop rbp
+    ret
+
+main:    
+    call precalculer_angles_rotation
+    call appliquer_rotations
+    
+    push rbp
+    mov rbp, rsp
+
+    xor rdi, rdi
+    call XDisplayName
+
+    test rax, rax
+    jz closeDisplay
+
+    xor rdi, rdi
+    call XOpenDisplay
+    test rax, rax
+    jz closeDisplay
+
+    mov [display_name], rax
+
+    mov rsp, rbp
+    pop rbp
+
+    mov rdi, qword[display_name]
+    mov dword[screen], 0
+    mov esi, dword[screen]
+    call XRootWindow
+    mov rbx, rax
+
+    mov rdi, qword[display_name]
+    mov rsi, rbx
+    mov rdx, 10
+    mov rcx, 10
+    mov r8, LARGEUR
+    mov r9, HAUTEUR
+    push 0x000000
+    push 0x000000
+    push 1
+    call XCreateSimpleWindow
+    mov qword[window], rax
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[window]
+    mov rdx, 131077
+    call XSelectInput
+
+    mov rdi, qword[display_name]
+    mov rsi, qword[window]
+    call XMapWindow
+
+    mov rdi, qword[display_name]
+    test rdi, rdi
+    jz closeDisplay
+    mov rsi, qword[window]
+    test rsi, rsi
+    jz closeDisplay
+    xor rdx, rdx
+    xor rcx, rcx
+    call XCreateGC
+    test rax, rax
+    jz closeDisplay
+    mov qword[gc], rax
+
+boucle:
+    mov rdi, qword[display_name]
+    cmp rdi, 0
+    je closeDisplay
+    mov rsi, event
+    call XNextEvent
+    
+    cmp dword[event], ConfigureNotify
+    je dessin
+    cmp dword[event], KeyPress
+    je closeDisplay
+    jmp boucle
+
+dessin:
+    call projeter
+    call dessiner
+    jmp flush
+
+flush:
+    mov rdi, qword[display_name]
+    call XFlush
+    jmp boucle
+
+closeDisplay:
+    mov rax, qword[display_name]
+    mov rdi, rax
+    call XCloseDisplay
+    xor rdi, rdi
+    call exit
