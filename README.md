@@ -7,7 +7,7 @@ Ce projet d'architecture matérielle met en valeur des compétences clés direct
 * **Optimisation CPU (Instructions SSE) :** Exploitation des capacités vectorielles du processeur (SIMD) pour paralléliser les calculs sur les nombres flottants, une compétence cruciale pour le traitement de volumes de données massifs (*Big Data*).
 * **Gestion mémoire :** Manipulation directe de structures de données plates en mémoire (tableaux de sommets et de faces sous forme de blocs de mémoire).
 
-## 🛠️ Fonctionnalités implémentées
+## Fonctionnalités implémentées
 
 1. **Rotations 3D :** Application de formules trigonométriques matricielles sur les axes X, Y, Z.
 2. **Projection Perspective :** Transformation des points de l'espace 3D (X, Y, Z) en coordonnées planes 2D (X', Y') adaptées à l'écran via le théorème de Thalès.
